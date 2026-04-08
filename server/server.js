@@ -17,7 +17,9 @@ app.get('/', (req, res) => res.send('QuickScan Backend Live'));
 app.post('/api/scan', async (req, res) => {
     const { inputType, content } = req.body; 
 
-    if (!content) return res.status(400).json({ error: 'Required' });
+    if (!content || content.length < 5) {
+        return res.status(400).json({ error: 'Please provide more text to analyze.' });
+    }
 
     try {
         let textToAnalyze = content;
@@ -44,13 +46,18 @@ app.post('/api/scan', async (req, res) => {
     }
 });
 
+const connectDB = async () => {
+    if (mongoose.connection.readyState >= 1) return;
+    return mongoose.connect(process.env.MONGODB_URI);
+};
+
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 5000;
-    mongoose.connect(process.env.MONGODB_URI).then(() => {
+    connectDB().then(() => {
         app.listen(PORT);
     });
 } else {
-    mongoose.connect(process.env.MONGODB_URI);
+    connectDB();
 }
 
 export default app;
