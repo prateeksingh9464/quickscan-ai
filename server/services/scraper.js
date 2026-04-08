@@ -3,20 +3,18 @@ import * as cheerio from 'cheerio';
 
 export const scrapeText = async (url) => {
     try {
-        const { data } = await axios.get(url, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+        const { data } = await axios.get(url, { 
+            timeout: 3000,
+            headers: { 'User-Agent': 'Mozilla/5.0' } 
         });
         const $ = cheerio.load(data);
+
+        $('script, style, nav, footer, header, ads, iframe, .sidebar').remove();
+
+        const text = $('p, h1, h2, h3').text().replace(/\s+/g, ' ').trim();
         
-        // Strip out useless HTML tags
-        $('script, style, nav, footer, header, aside').remove();
-        
-        // Extract text from headers and paragraphs
-        const text = $('h1, h2, h3, p').map((i, el) => $(el).text()).get().join(' ');
-        
-        // Clean up excessive spacing
-        return text.replace(/\s+/g, ' ').trim();
+        return text.slice(0, 8000);
     } catch (error) {
-        throw new Error(`Scraper failed: ${error.message}`);
+        throw new Error('Failed to scrape the website within the time limit.');
     }
 };

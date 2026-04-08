@@ -12,24 +12,20 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res) => res.send('QuickScan Backend is Live!'));
+app.get('/', (req, res) => res.send('QuickScan Backend Live'));
 
 app.post('/api/scan', async (req, res) => {
     const { inputType, content } = req.body; 
 
-    if (!content) return res.status(400).json({ error: 'Content is required' });
+    if (!content) return res.status(400).json({ error: 'Required' });
 
     try {
         let textToAnalyze = content;
-        let sourceToSave = "Raw Text Input";
+        let sourceToSave = "Raw Text";
 
         if (inputType === 'url') {
             textToAnalyze = await scrapeText(content);
             sourceToSave = content;
-        }
-
-        if (textToAnalyze.length < 50) {
-            return res.status(400).json({ error: 'Not enough content found to summarize.' });
         }
 
         const aiResult = await analyzeContent(textToAnalyze);
@@ -44,20 +40,17 @@ app.post('/api/scan', async (req, res) => {
 
         res.status(200).json(newScan);
     } catch (error) {
-        res.status(500).json({ error: error.message || 'Something went wrong on the server.' });
+        res.status(500).json({ error: error.message });
     }
 });
 
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 5000;
-    mongoose.connect(process.env.MONGODB_URI)
-        .then(() => {
-            app.listen(PORT);
-        })
-        .catch(err => console.error(err));
+    mongoose.connect(process.env.MONGODB_URI).then(() => {
+        app.listen(PORT);
+    });
 } else {
-    mongoose.connect(process.env.MONGODB_URI)
-        .catch(err => console.error(err));
+    mongoose.connect(process.env.MONGODB_URI);
 }
 
 export default app;
