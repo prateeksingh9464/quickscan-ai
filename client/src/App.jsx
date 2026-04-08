@@ -4,21 +4,21 @@ import { Search, Loader2, Download, BrainCircuit, Link2, FileText } from 'lucide
 import { jsPDF } from "jspdf";
 
 function App() {
-  const [inputType, setInputType] = useState('url'); // 'url' or 'text'
+  const [inputType, setInputType] = useState('url'); 
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
+
+  const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   const handleScan = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      // Sending both the type and the content to the backend
-      const res = await axios.post('http://localhost:5000/api/scan', { inputType, content });
+      const res = await axios.post(`${backendUrl}/api/scan`, { inputType, content });
       setData(res.data);
     } catch (err) {
-      alert("Error scanning content. Check terminal for details.");
-      console.error(err);
+      alert("Error scanning content. If on Vercel, the site might have taken too long to respond (504 Error).");
     } finally {
       setLoading(false);
     }
@@ -31,7 +31,6 @@ function App() {
     doc.text(`Source: ${data.sourceUrl}`, 10, 20);
     doc.text("Summary:", 10, 30);
     
-    // Auto-wrap text so it doesn't run off the PDF page
     const splitSummary = doc.splitTextToSize(data.summary, 180);
     doc.text(splitSummary, 10, 40);
     
@@ -48,10 +47,7 @@ function App() {
       </header>
 
       <main className="max-w-6xl mx-auto">
-        {/* Input Section */}
         <section className="bg-slate-900 border border-slate-800 p-8 rounded-3xl mb-8 shadow-xl">
-          
-          {/* Toggle Buttons */}
           <div className="flex gap-4 mb-6">
             <button 
               type="button"
@@ -69,12 +65,11 @@ function App() {
             </button>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleScan} className="flex flex-col md:flex-row gap-4">
             {inputType === 'url' ? (
               <input 
                 type="url" 
-                placeholder="Paste link here (e.g., https://en.wikipedia.org/wiki/Artificial_intelligence)"
+                placeholder="Paste link here..."
                 className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
@@ -100,7 +95,6 @@ function App() {
           </form>
         </section>
 
-        {/* Results Bento Grid */}
         {data && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2 bg-slate-900 border border-slate-800 p-8 rounded-3xl">
