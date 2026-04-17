@@ -2,62 +2,98 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { scrapeText } from './services/scraper.js';
 import { analyzeContent } from './services/gemini.js';
+import { scrapeText } from './services/scraper.js';
 import Scan from './models/Scan.js';
 
 dotenv.config();
-const app = express();
 
+const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res) => res.send('QuickScan Backend Live'));
+// Cached MongoDB connection for serverless (Vercel)
+let isConnected = false;
 
-app.post('/api/scan', async (req, res) => {
-    const { inputType, content } = req.body; 
-
-    if (!content || content.length < 5) {
-        return res.status(400).json({ error: 'Please provide more text to analyze.' });
+async function connectDB() {
+    if (isConnected) return;
+    if (mongoose.connection.readyState === 1) {
+        isConnected = true;
+        return;
     }
-
     try {
-        let textToAnalyze = content;
-        let sourceToSave = "Raw Text";
+        await mongoose.connect(process.env.MONGODB_URI, {
+            family: 4,
+            serverSelectionTimeoutMS: 5000,
+            connectTimeoutMS: 5000,
+            bufferCommands: false,
+        });
+        isConnected = true;
+        console.log('✅ Connected to MongoDB Atlas');
+    } catch (err) {
+        console.error('❌ MongoDB Connection Error:', err.message);
+        // Don't throw — let the request proceed without DB (save is non-critical)
+    }
+}
 
-        if (inputType === 'url') {
-            textToAnalyze = await scrapeText(content);
-            sourceToSave = content;
+// Warm-up route for Vercel
+app.get('/', (req, res) => {
+    res.send('QuickScan Backend Live');
+});
+
+// Main Scan Route
+app.post('/api/scan', async (req, res) => {
+    try {
+        const { url, text } = req.body;
+        console.log('📨 Received scan request:', { url: url || '(none)', textLength: text?.length || 0 });
+
+        let contentToAnalyze = text;
+
+        if (url) {
+            console.log('🌐 Scraping URL:', url);
+            contentToAnalyze = await scrapeText(url);
+            console.log('✅ Scraped text length:', contentToAnalyze?.length || 0);
         }
 
-        const aiResult = await analyzeContent(textToAnalyze);
+        if (!contentToAnalyze || contentToAnalyze.length < 50) {
+            return res.status(400).json({ error: "Text too short. Please provide at least a full paragraph." });
+        }
 
-        const newScan = await Scan.create({
-            sourceUrl: sourceToSave,
-            summary: aiResult.summary,
-            keyPoints: aiResult.keyPoints,
-            sentimentScore: aiResult.sentimentScore,
-            entities: aiResult.entities
-        });
+        console.log('🤖 Calling Gemini API...');
+        const analysis = await analyzeContent(contentToAnalyze);
+        console.log('✅ Gemini analysis received');
 
-        res.status(200).json(newScan);
+        // Save to database BEFORE responding (serverless may freeze after res.json)
+        try {
+            await connectDB();
+            const newScan = new Scan({
+                sourceUrl: url || 'Raw Text Input',
+                summary: analysis.summary,
+                keyPoints: analysis.keyPoints,
+                sentimentScore: analysis.sentimentScore,
+                entities: analysis.entities
+            });
+            await newScan.save();
+            console.log('💾 Scan saved to database');
+        } catch (dbError) {
+            console.error('⚠️ Failed to save to database (non-critical):', dbError.message);
+        }
+
+        res.json(analysis);
+
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('❌ Server Error:', error.message);
+        console.error('Stack:', error.stack);
+        res.status(500).json({ error: `Failed to process request: ${error.message}` });
     }
 });
 
-const connectDB = async () => {
-    if (mongoose.connection.readyState >= 1) return;
-    return mongoose.connect(process.env.MONGODB_URI);
-};
-
+// Run locally if not on Vercel
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 5000;
-    connectDB().then(() => {
-        app.listen(PORT);
+    app.listen(PORT, () => {
+        console.log(`🚀 Server running on http://localhost:${PORT}`);
     });
-} else {
-    connectDB();
 }
 
 export default app;

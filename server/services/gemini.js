@@ -6,7 +6,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export const analyzeContent = async (text) => {
     const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.0-flash",
         systemInstruction: "You are a data extraction engine. Analyze text and return JSON. Provide 3-sentence summary, 5 key points, sentiment score (0-100), and top 3 entities. No markdown.",
         generationConfig: {
             responseMimeType: "application/json",
