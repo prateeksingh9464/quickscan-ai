@@ -19,7 +19,8 @@ function App() {
       const res = await axios.post(`${backendUrl}/api/scan`, payload);
       setData(res.data);
     } catch (err) {
-      alert("Error scanning content. If on Vercel, the site might have taken too long to respond (504 Error).");
+      const errorMsg = err.response?.data?.error || "Error scanning content. Please try again later.";
+      alert(errorMsg);
     } finally {
       setLoading(false);
     }
