@@ -4,7 +4,7 @@ import { Search, Loader2, Download, BrainCircuit, Link2, FileText } from 'lucide
 import { jsPDF } from "jspdf";
 
 function App() {
-  const [inputType, setInputType] = useState('url'); 
+  const [inputType, setInputType] = useState('url');
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
@@ -15,10 +15,12 @@ function App() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await axios.post(`${backendUrl}/api/scan`, { inputType, content });
+      const payload = inputType === 'url' ? { url: content } : { text: content };
+      const res = await axios.post(`${backendUrl}/api/scan`, payload);
       setData(res.data);
     } catch (err) {
-      alert("Error scanning content. If on Vercel, the site might have taken too long to respond (504 Error).");
+      const errorMsg = err.response?.data?.error || "Error scanning content. Please try again later.";
+      alert(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -30,10 +32,10 @@ function App() {
     doc.text("QuickScan AI Report", 10, 10);
     doc.text(`Source: ${data.sourceUrl}`, 10, 20);
     doc.text("Summary:", 10, 30);
-    
+
     const splitSummary = doc.splitTextToSize(data.summary, 180);
     doc.text(splitSummary, 10, 40);
-    
+
     doc.save("QuickScan_Report.pdf");
   };
 
@@ -49,14 +51,14 @@ function App() {
       <main className="max-w-6xl mx-auto">
         <section className="bg-slate-900 border border-slate-800 p-8 rounded-3xl mb-8 shadow-xl">
           <div className="flex gap-4 mb-6">
-            <button 
+            <button
               type="button"
               onClick={() => { setInputType('url'); setContent(''); }}
               className={`flex items-center gap-2 px-6 py-2 rounded-full font-semibold transition-colors ${inputType === 'url' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
             >
               <Link2 size={18} /> URL
             </button>
-            <button 
+            <button
               type="button"
               onClick={() => { setInputType('text'); setContent(''); }}
               className={`flex items-center gap-2 px-6 py-2 rounded-full font-semibold transition-colors ${inputType === 'text' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
@@ -67,8 +69,8 @@ function App() {
 
           <form onSubmit={handleScan} className="flex flex-col md:flex-row gap-4">
             {inputType === 'url' ? (
-              <input 
-                type="url" 
+              <input
+                type="url"
                 placeholder="Paste link here..."
                 className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={content}
@@ -76,7 +78,7 @@ function App() {
                 required
               />
             ) : (
-              <textarea 
+              <textarea
                 placeholder="Paste your long text document here..."
                 className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px] resize-y"
                 value={content}
@@ -84,8 +86,8 @@ function App() {
                 required
               />
             )}
-            
-            <button 
+
+            <button
               disabled={loading || !content}
               className="bg-blue-600 hover:bg-blue-700 px-8 py-3 rounded-xl font-bold flex justify-center items-center gap-2 transition-all disabled:opacity-50 h-fit md:h-auto"
             >
@@ -101,7 +103,7 @@ function App() {
               <h2 className="text-blue-400 font-bold mb-4 uppercase text-xs tracking-widest">Summary</h2>
               <p className="text-xl leading-relaxed text-slate-300">{data.summary}</p>
             </div>
-            
+
             <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl flex flex-col justify-center items-center text-center">
               <h2 className="text-blue-400 font-bold mb-2 uppercase text-xs tracking-widest">Sentiment</h2>
               <span className="text-6xl font-black text-white">{data.sentimentScore}%</span>
@@ -127,7 +129,7 @@ function App() {
               </div>
             </div>
 
-            <button 
+            <button
               onClick={downloadPDF}
               className="col-span-1 md:col-span-3 bg-slate-800 hover:bg-slate-700 p-6 rounded-3xl flex items-center justify-center gap-3 transition-colors text-white font-bold"
             >
